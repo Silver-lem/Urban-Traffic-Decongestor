@@ -1,38 +1,31 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request
 from openai import OpenAI
-import os
 
 app = Flask(__name__)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI()
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    # Loads our simple HTML page
-    return render_template("index.html")
+    recommendation = None
+    if request.method == "POST":
+        start = request.form["start"]
+        destination = request.form["destination"]
+        traffic = request.form["traffic"]
 
-@app.route("/get_recommendation", methods=["POST"])
-def get_recommendation():
-    try:
-        data = request.json
-        start = data.get("start")
-        destination = data.get("destination")
-        traffic = data.get("traffic")
+        prompt = f"Suggest the best route from {start} to {destination} considering traffic is {traffic}."
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI traffic assistant."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            recommendation = response.choices[0].message.content
+        except Exception as e:
+            recommendation = f"Error: {e}"
 
-        # Call OpenAI API
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a smart assistant giving traffic advice."},
-                {"role": "user", "content": f"Start: {start}, Destination: {destination}, Traffic: {traffic}. Suggest the best route."}
-            ]
-        )
-
-        recommendation = response.choices[0].message.content
-        return jsonify({"recommendation": recommendation})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    return render_template("index.html", recommendation=recommendation)
 
 if __name__ == "__main__":
     app.run(debug=True)
