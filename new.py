@@ -1,31 +1,30 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from openai import OpenAI
+import os
 
 app = Flask(__name__)
-client = OpenAI()
 
-@app.route("/", methods=["GET", "POST"])
+# Load OpenAI client (make sure OPENAI_API_KEY is set in your environment)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Route to serve the frontend
+@app.route("/")
 def index():
-    recommendation = None
-    if request.method == "POST":
-        start = request.form["start"]
-        destination = request.form["destination"]
-        traffic = request.form["traffic"]
+    return render_template("index.html")
 
-        prompt = f"Suggest the best route from {start} to {destination} considering traffic is {traffic}."
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful AI traffic assistant."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            recommendation = response.choices[0].message.content
-        except Exception as e:
-            recommendation = f"Error: {e}"
+# API endpoint for AJAX requests
+@app.route("/get_recommendation", methods=["POST"])
+def get_recommendation():
+    data = request.get_json()  # get JSON from JS fetch
+    start = data.get("start")
+    destination = data.get("destination")
+    status = data.get("status")
 
-    return render_template("index.html", recommendation=recommendation)
+    # --- for testing only ---
+    # return a fake response so we know backend works
+    return jsonify({
+        "recommendation": f"Got your request: {start} → {destination}, traffic = {status}"
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
