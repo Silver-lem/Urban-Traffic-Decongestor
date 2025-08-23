@@ -1,29 +1,86 @@
-document.getElementById("traffic-form").addEventListener("submit", async function(event) {
-    event.preventDefault(); // stop page reload
+// --- Map Initialization ---
+let map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+let routeLayer = null; // To hold the route layer
 
-    // get values
+// --- Main Form Submission Logic ---
+document.getElementById("traffic-form").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
     const start = document.getElementById("start").value;
     const destination = document.getElementById("destination").value;
     const status = document.getElementById("status").value;
 
-    // show "loading..." while waiting
-    document.getElementById("recommendation").innerText = "Thinking... 🚦";
+    document.getElementById("recommendation").innerHTML = "";
+    document.getElementById("loader").classList.remove("hidden");
 
     try {
-        // send data to Flask backend
         const response = await fetch("/get_recommendation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ start, destination, status })
         });
-
-        // get AI reply
         const data = await response.json();
 
-        // update page
+        document.getElementById("loader").classList.add("hidden");
         document.getElementById("recommendation").innerText = data.recommendation;
+
+        if (data.geometry) {
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+            }
+            routeLayer = L.geoJSON({
+                "type": "Feature",
+                "geometry": data.geometry
+            }, {
+                style: { color: "#00F5A0", weight: 5, opacity: 0.8 }
+            }).addTo(map);
+            map.fitBounds(routeLayer.getBounds());
+        }
+
     } catch (error) {
-        document.getElementById("recommendation").innerText = "Error: Could not fetch recommendation.";
+        document.getElementById("loader").classList.add("hidden");
+        document.getElementById("recommendation").innerText = "Error: Could not get recommendation. Check console for details.";
         console.error(error);
+    }
+});
+
+// --- Voice Input (Speech-to-Text) ---
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+
+    document.querySelectorAll('.mic-icon').forEach(mic => {
+        mic.addEventListener('click', () => {
+            const targetInput = document.getElementById(mic.dataset.target);
+            recognition.start();
+            targetInput.placeholder = "Listening...";
+            
+            recognition.onresult = (event) => {
+                targetInput.value = event.results[0][0].transcript;
+                targetInput.placeholder = ""; // Reset placeholder
+            };
+            
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error", event.error);
+                targetInput.placeholder = "Sorry, I couldn't hear you.";
+            };
+        });
+    });
+} else {
+    console.log("Speech Recognition not supported in this browser.");
+    document.querySelectorAll('.mic-icon').forEach(mic => mic.style.display = 'none');
+}
+
+// --- Voice Output (Text-to-Speech) ---
+document.getElementById('speaker-btn').addEventListener('click', () => {
+    const textToSpeak = document.getElementById('recommendation').innerText;
+    if (textToSpeak && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        window.speechSynthesis.speak(utterance);
     }
 });

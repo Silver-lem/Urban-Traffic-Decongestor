@@ -1,11 +1,15 @@
 from flask import Flask, render_template, request, jsonify
-from openai import OpenAI
+import google.generativeai as genai
 import os
+from dotenv import load_dotenv
+import requests
+
+load_dotenv()
 
 app = Flask(__name__)
 
-# Load OpenAI client (make sure OPENAI_API_KEY is set in your environment)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Configure the Gemini API client
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 @app.route("/")
 def index():
@@ -18,25 +22,67 @@ def get_recommendation():
     destination = data.get("destination")
     status = data.get("status")
 
-    # Construct prompt
-    prompt = f"Suggest the best route from {start} to {destination} considering the traffic is {status}."
-
+    # ---- 1. Get Text Recommendation from Gemini ----
+    recommendation_text = ""
     try:
-        # Call OpenAI API
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # lightweight + cheap
-            messages=[
-                {"role": "system", "content": "You are a helpful AI traffic assistant."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        prompt = f"""
+You are an expert GPS navigation assistant. Your task is to provide a clear and concise driving route summary from {start} to {destination}, accounting for {status} traffic.
 
-        recommendation = response.choices[0].message.content
+**RULES:**
+- Your entire response MUST be a direct, brief summary of the primary route.
+- Do NOT include any disclaimers about real-time traffic, estimates, or lack of information.
+- Do NOT use conversational filler like "Here is the route...".
+- If the traffic status is vague (e.g., "don't know"), assume normal traffic conditions for your calculation.
+
+**FORMAT:**
+- Start with "Primary Route:" followed by the main highways.
+- On a new line, start with "Estimated Time:".
+- On a new line, start with "Estimated Distance:".
+"""
+        # --- THIS IS THE CORRECTED LINE ---
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        response = model.generate_content(prompt)
+        recommendation_text = response.text
+    except Exception as e:
+        recommendation_text = f"Error from AI model: {str(e)}"
+
+    # ---- 2. Get Route Coordinates from OpenRouteService ----
+    route_geometry = None
+    try:
+        ors_api_key = os.getenv("ORS_API_KEY")
+        
+        base_url = "https://api.openrouteservice.org/geocode/search"
+        start_req = requests.get(f"{base_url}?api_key={ors_api_key}&text={start}")
+        dest_req = requests.get(f"{base_url}?api_key={ors_api_key}&text={destination}")
+
+        start_req.raise_for_status()
+        dest_req.raise_for_status()
+        
+        start_coords = start_req.json()['features'][0]['geometry']['coordinates']
+        dest_coords = dest_req.json()['features'][0]['geometry']['coordinates']
+        
+        headers = {
+            'Authorization': ors_api_key,
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        body = {'coordinates': [start_coords, dest_coords]}
+        route_req = requests.post(
+            'https://api.openrouteservice.org/v2/directions/driving-car/geojson', 
+            headers=headers, 
+            json=body
+        )
+        route_req.raise_for_status()
+        route_geometry = route_req.json()['features'][0]['geometry']
 
     except Exception as e:
-        recommendation = f"Error: {str(e)}"
+        print(f"Could not get route geometry: {str(e)}")
+        recommendation_text += "\n\n(Could not retrieve map data.)"
 
-    return jsonify({"recommendation": recommendation})
+    # ---- 3. Return BOTH text and coordinates to the frontend ----
+    return jsonify({
+        "recommendation": recommendation_text,
+        "geometry": route_geometry
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)

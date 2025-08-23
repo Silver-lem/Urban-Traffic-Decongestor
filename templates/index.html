@@ -4,31 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Traffic Decongestor</title>
-    <!-- Link to external CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-    <h1>🚦 AI Traffic Decongestor</h1>
+    <div class="main-container">
+        <div class="input-panel">
+            <header class="app-header">
+                <h1>🚦 AI Traffic Decongestor</h1>
+                <p>Enter your route details to get an intelligent traffic recommendation.</p>
+            </header>
+            
+            <form id="traffic-form">
+                <div class="input-group">
+                    <label for="start">Start Location:</label>
+                    <div class="input-with-icon">
+                        <input type="text" id="start" name="start" required placeholder="e.g., Hyderabad, Telangana">
+                        <span class="mic-icon" data-target="start">🎤</span>
+                    </div>
+                </div>
 
-    <form id="traffic-form">
-        <label for="start">Start Location:</label>
-        <input type="text" id="start" name="start" required>
+                <div class="input-group">
+                    <label for="destination">Destination:</label>
+                    <div class="input-with-icon">
+                        <input type="text" id="destination" name="destination" required placeholder="e.g., Amritsar, Punjab">
+                        <span class="mic-icon" data-target="destination">🎤</span>
+                    </div>
+                </div>
 
-        <label for="destination">Destination:</label>
-        <input type="text" id="destination" name="destination" required>
+                <div class="input-group">
+                    <label for="status">Traffic Status:</label>
+                    <input type="text" id="status" name="status" placeholder="e.g., jammed, free, moderate" required>
+                </div>
 
-        <label for="status">Traffic Status:</label>
-        <input type="text" id="status" name="status" placeholder="e.g., jammed, free" required>
+                <button type="submit">Get Recommendation</button>
+            </form>
+        </div>
 
-        <button type="submit">Get Recommendation</button>
-    </form>
-
-    <div id="recommendation-box">
-        <h2>AI Recommendation:</h2>
-        <p id="recommendation">Enter details above and click "Get Recommendation".</p>
+        <div class="output-panel">
+            <div id="map"></div>
+            <div id="recommendation-box">
+                <div class="recommendation-header">
+                    <h2>AI Recommendation</h2>
+                    <span class="speaker-icon" id="speaker-btn">🗣️</span>
+                </div>
+                <div id="loader" class="hidden"></div>
+                <p id="recommendation">Your optimized route will appear here.</p>
+            </div>
+        </div>
     </div>
 
-    <!-- Link to external JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
