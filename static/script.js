@@ -28,9 +28,8 @@ document.getElementById("traffic-form").addEventListener("submit", async functio
         document.getElementById("recommendation").innerText = data.recommendation;
 
         if (data.geometry) {
-            if (routeLayer) {
-                map.removeLayer(routeLayer);
-            }
+            if (routeLayer) map.removeLayer(routeLayer);
+
             routeLayer = L.geoJSON({
                 "type": "Feature",
                 "geometry": data.geometry
@@ -42,7 +41,7 @@ document.getElementById("traffic-form").addEventListener("submit", async functio
 
     } catch (error) {
         document.getElementById("loader").classList.add("hidden");
-        document.getElementById("recommendation").innerText = "Error: Could not get recommendation. Check console for details.";
+        document.getElementById("recommendation").innerText = "Error: Could not get recommendation.";
         console.error(error);
     }
 });
@@ -62,7 +61,7 @@ if (SpeechRecognition) {
             
             recognition.onresult = (event) => {
                 targetInput.value = event.results[0][0].transcript;
-                targetInput.placeholder = ""; // Reset placeholder
+                targetInput.placeholder = "";
             };
             
             recognition.onerror = (event) => {
@@ -72,7 +71,6 @@ if (SpeechRecognition) {
         });
     });
 } else {
-    console.log("Speech Recognition not supported in this browser.");
     document.querySelectorAll('.mic-icon').forEach(mic => mic.style.display = 'none');
 }
 
@@ -84,3 +82,39 @@ document.getElementById('speaker-btn').addEventListener('click', () => {
         window.speechSynthesis.speak(utterance);
     }
 });
+
+// --- Events Dropdown with Traffic Impact ---
+const eventsDropdown = document.getElementById("events-dropdown");
+document.getElementById("find-events-btn").addEventListener("click", async () => {
+    try {
+        const mockEvents = [
+            { name: "Hyderabad Tech Fest", location: "Hyderabad, Telangana", venue: "HITEX", impact: "High" },
+            { name: "Mumbai Music Concert", location: "Mumbai, Maharashtra", venue: "NCPA", impact: "Moderate" },
+            { name: "Delhi Sports Meet", location: "New Delhi, Delhi", venue: "Jawaharlal Stadium", impact: "Low" }
+        ];
+
+        eventsDropdown.innerHTML = '<option value="">-- Select an Event --</option>';
+
+        mockEvents.forEach(ev => {
+            const option = document.createElement("option");
+            option.value = ev.location;
+            option.textContent = `${ev.name} @ ${ev.venue} (Traffic: ${ev.impact})`;
+            option.setAttribute("data-impact", ev.impact);
+            eventsDropdown.appendChild(option);
+        });
+
+        eventsDropdown.classList.remove("hidden");
+
+    } catch (err) {
+        console.error("Error fetching events:", err);
+    }
+});
+
+// Autofill destination when event is selected
+eventsDropdown.addEventListener("change", () => {
+    if (eventsDropdown.value) {
+        document.getElementById("destination").value = eventsDropdown.value;
+    }
+});
+
+

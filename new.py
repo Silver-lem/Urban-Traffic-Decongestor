@@ -84,5 +84,35 @@ You are an expert GPS navigation assistant. Your task is to provide a clear and 
         "geometry": route_geometry
     })
 
+@app.route("/get_events", methods=["GET"])
+def get_events():
+    try:
+        # Example: Meetup API (replace with your key & group or city search)
+        meetup_api_key = os.getenv("MEETUP_API_KEY")
+        url = f"https://api.meetup.com/find/upcoming_events?&sign=true&photo-host=public&lon=78.4867&lat=17.3850&radius=20&page=5&key={meetup_api_key}"
+
+        resp = requests.get(url)
+        resp.raise_for_status()
+        events_data = resp.json()
+
+        events = []
+        for e in events_data.get("events", []):
+            event_info = {
+                "name": e.get("name"),
+                "venue": e.get("venue", {}).get("name", "Unknown Venue"),
+                "address": e.get("venue", {}).get("address_1", "No address available"),
+                "time": e.get("local_date") + " " + e.get("local_time"),
+                "lat": e.get("venue", {}).get("lat"),
+                "lng": e.get("venue", {}).get("lon")
+            }
+            events.append(event_info)
+
+        return jsonify({"events": events})
+
+    except Exception as e:
+        print("Error fetching events:", str(e))
+        return jsonify({"events": []})
+
+
 if __name__ == "__main__":
     app.run(debug=True)
