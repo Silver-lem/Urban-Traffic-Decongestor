@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import google.generativeai as genai
+import openai
 import os
 from dotenv import load_dotenv
 import requests
@@ -7,9 +7,8 @@ import requests
 load_dotenv()
 
 app = Flask(__name__)
-
-# Configure the Gemini API client
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+ 
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/")
 def index():
@@ -22,7 +21,7 @@ def get_recommendation():
     destination = data.get("destination")
     status = data.get("status")
 
-    # ---- 1. Get Text Recommendation from Gemini ----
+    # ---- 1. Get Text Recommendation from OpenAI ----
     recommendation_text = ""
     try:
         prompt = f"""
@@ -39,14 +38,16 @@ You are an expert GPS navigation assistant. Your task is to provide a clear and 
 - On a new line, start with "Estimated Time:".
 - On a new line, start with "Estimated Distance:".
 """
-        # --- THIS IS THE CORRECTED LINE ---
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        response = model.generate_content(prompt)
-        recommendation_text = response.text
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",   # You can switch to gpt-4o if you want
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+        recommendation_text = response.choices[0].message.content.strip()
     except Exception as e:
         recommendation_text = f"Error from AI model: {str(e)}"
 
-    # ---- 2. Get Route Coordinates from OpenRouteService ----
+    
     route_geometry = None
     try:
         ors_api_key = os.getenv("ORS_API_KEY")
@@ -87,7 +88,6 @@ You are an expert GPS navigation assistant. Your task is to provide a clear and 
 @app.route("/get_events", methods=["GET"])
 def get_events():
     try:
-        # Example: Meetup API (replace with your key & group or city search)
         meetup_api_key = os.getenv("MEETUP_API_KEY")
         url = f"https://api.meetup.com/find/upcoming_events?&sign=true&photo-host=public&lon=78.4867&lat=17.3850&radius=20&page=5&key={meetup_api_key}"
 
