@@ -44,8 +44,7 @@ cd ai-traffic-decongestor
 pip install -r requirements.txt
 
 3. Add API Key
-Create a .env file in the root directory:
-GOOGLE_API_KEY=your_api_key_here
+under the .env file in the root directory, insert your API key
 
 4. Run the Server
 python new.py
